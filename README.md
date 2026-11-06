@@ -1,0 +1,1 @@
+- 다운로드 : https://github.com/hamster4762/crack-context-copy/raw/refs/heads/main/crack-context-copy.user.js
