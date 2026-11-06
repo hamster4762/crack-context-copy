@@ -238,7 +238,9 @@
             .trigger:not(:disabled):hover { background: var(--hover); }
             .trigger.dragging { cursor: grabbing; }
             .trigger svg { pointer-events: none; }
-            .hold-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+            .hold-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg);
+                visibility: hidden; }
+            .trigger.holding .hold-ring { visibility: visible; }
             .hold-ring circle { stroke-dasharray: 1; stroke-dashoffset: 1; }
             .trigger.holding .hold-ring circle { animation: hold-fill ${holdDuration}ms linear forwards; }
             @keyframes hold-fill { to { stroke-dashoffset: 0; } }
@@ -290,7 +292,7 @@
         <dialog aria-labelledby="title">
             <header>
                 <h2 id="title">맥락 복사 설정</h2>
-                <button class="close" type="button" aria-label="닫기">×</button>
+                <button class="close" type="button" aria-label="닫기" autofocus>×</button>
             </header>
             <fieldset>
                 <label class="setting">최근 턴 수 <input id="turns" type="number" min="1" step="1" required></label>
@@ -353,12 +355,12 @@
         preview.value = '';
     }
 
-    function openSettings() {
+    function openSettings(focusTurns = true) {
         if (dialog.open || !room) return;
         status.textContent = '';
         preview.value = '';
         dialog.showModal();
-        turnsInput.focus();
+        if (focusTurns) turnsInput.focus();
     }
 
     function saveSettings() {
@@ -418,7 +420,7 @@
         trigger.classList.add('holding');
         holdTimer = setTimeout(() => {
             endGesture();
-            openSettings();
+            openSettings(event.pointerType === 'mouse');
         }, holdDuration);
     });
 
