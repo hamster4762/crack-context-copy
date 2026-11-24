@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 맥락 복사
 // @namespace    https://crack.wrtn.ai/
-// @version      1.0.0
+// @version      1.1.0
 // @description  현재 채팅방의 최근 턴, 대화프로필, 유저노트를 복사합니다.
 // @match        https://crack.wrtn.ai/*
 // @run-at       document-idle
@@ -12,8 +12,8 @@
 // @downloadURL  https://github.com/hamster4762/crack-context-copy/raw/refs/heads/main/crack-context-copy.user.js
 // ==/UserScript==
 
-// localStorage(crack-context-copy:settings)에는 최근 턴 수와 대화프로필, 유저노트, RP 기록의 포함 여부만 저장.
-// 버튼 위치는 현재 페이지에서만 유지.
+// localStorage(crack-context-copy:settings)에는 최근 턴 수, 대화프로필·유저노트·RP 기록의 포함 여부, 버튼 위치(float/input)만 저장.
+// 플로팅 버튼을 끌어 옮긴 좌표는 현재 페이지에서만 유지.
 // 대화로그, 대화프로필, 유저노트 원문과 로그인 토큰은 이 스크립트가 저장하지 않습니다.
 
 (() => {
@@ -21,8 +21,21 @@
 
     const api = 'https://crack-api.wrtn.ai';
     const settingsKey = 'crack-context-copy:settings';
-    const defaults = { turns: 10, profile: true, note: true, rpHistory: true };
+    const defaults = { turns: 10, profile: true, note: true, rpHistory: true, position: 'float' };
     const holdDuration = 500;
+    // 크랙 입력창 왼쪽 아래 버튼 그룹. 줄 맨 앞에 버튼 없는 요소가 끼어들 수 있어 버튼을 직접 가진 첫 자식을 찾는다.
+    const inputGroup = 'div.rounded-lg.border:has(.ProseMirror) > div > div.justify-between > div:nth-child(1 of :has(> button))';
+    // 버튼이 섀도 DOM(플로팅)과 크랙 화면(입력창)을 오가므로 양쪽에 같은 스타일을 넣는다.
+    const holdCss = `
+        [data-crack-context-copy] .hold-ring { position: absolute; inset: 0; width: 100%; height: 100%;
+            transform: rotate(-90deg); visibility: hidden; }
+        [data-crack-context-copy].holding .hold-ring { visibility: visible; }
+        [data-crack-context-copy] .hold-ring circle { stroke-dasharray: 1; stroke-dashoffset: 1; }
+        [data-crack-context-copy].holding .hold-ring circle { animation: crack-context-copy-hold ${holdDuration}ms linear forwards; }
+        @keyframes crack-context-copy-hold { to { stroke-dashoffset: 0; } }
+        @media (prefers-reduced-motion: reduce) {
+            [data-crack-context-copy].holding .hold-ring circle { animation: none; stroke-dashoffset: 0; }
+        }`;
 
     function currentRoomId() {
         return location.pathname.match(/^\/stories\/[^/]+\/episodes\/([\w-]+)\/?$/)?.[1] ?? '';
@@ -238,15 +251,7 @@
             .trigger:not(:disabled):hover { background: var(--hover); }
             .trigger.dragging { cursor: grabbing; }
             .trigger svg { pointer-events: none; }
-            .hold-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg);
-                visibility: hidden; }
-            .trigger.holding .hold-ring { visibility: visible; }
-            .hold-ring circle { stroke-dasharray: 1; stroke-dashoffset: 1; }
-            .trigger.holding .hold-ring circle { animation: hold-fill ${holdDuration}ms linear forwards; }
-            @keyframes hold-fill { to { stroke-dashoffset: 0; } }
-            @media (prefers-reduced-motion: reduce) {
-                .trigger.holding .hold-ring circle { animation: none; stroke-dashoffset: 0; }
-            }
+            ${holdCss}
             .toast { position: fixed; z-index: 2147483640; top: max(12px, calc(env(safe-area-inset-top) + 8px));
                 left: 50%; transform: translateX(-50%); width: max-content; pointer-events: none;
                 max-width: min(280px, calc(100vw - 32px)); padding: 6px 11px; border: 1px solid var(--line);
@@ -266,6 +271,9 @@
             .setting { min-height: 42px; border-bottom: 1px solid var(--line); }
             input[type="number"] { width: 88px; padding: 4px 8px; border: 1px solid var(--line);
                 border-radius: 7px; background: var(--panel); color: var(--text); }
+            .choices { display: flex; gap: 14px; }
+            .choices label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+            input[type="radio"] { width: 16px; height: 16px; margin: 0; accent-color: light-dark(#35383c, #c1c5ca); }
             input[type="checkbox"] { width: 18px; height: 18px; margin-right: 4px;
                 accent-color: light-dark(#35383c, #c1c5ca); }
             .preview-label { display: block; margin-bottom: 5px; font-weight: 650; }
@@ -277,7 +285,7 @@
             .preview-button { flex: none; min-height: 40px; padding: 0 13px; border-radius: 8px; }
         </style>
         <div class="float" hidden>
-            <button class="trigger" type="button" title="맥락 복사 · 길게 눌러 설정 · 드래그로 이동"
+            <button class="trigger" type="button" data-crack-context-copy
                 aria-label="맥락 복사. 길게 누르거나 Shift+Enter로 설정" aria-keyshortcuts="Shift+Enter">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2" aria-hidden="true">
@@ -295,6 +303,12 @@
                 <button class="close" type="button" aria-label="닫기" autofocus>×</button>
             </header>
             <fieldset>
+                <div class="setting" role="radiogroup" aria-label="버튼 위치">버튼 위치
+                    <span class="choices">
+                        <label><input type="radio" name="position" value="float"> 플로팅</label>
+                        <label><input type="radio" name="position" value="input"> 입력창</label>
+                    </span>
+                </div>
                 <label class="setting">최근 턴 수 <input id="turns" type="number" min="1" step="1" required></label>
                 <label class="setting">대화프로필 포함 <input id="profile" type="checkbox" role="switch"></label>
                 <label class="setting">유저노트 포함 <input id="note" type="checkbox" role="switch"></label>
@@ -309,6 +323,13 @@
         </dialog>`;
     document.body.append(host);
 
+    const inputStyle = document.createElement('style');
+    inputStyle.textContent = `
+        [data-crack-context-copy] { position: relative; user-select: none; touch-action: manipulation; -webkit-touch-callout: none; }
+        [data-crack-context-copy] svg { fill: none !important; pointer-events: none; }
+        ${holdCss}`;
+    document.head.append(inputStyle);
+
     const float = ui.querySelector('.float');
     const trigger = ui.querySelector('.trigger');
     const toast = ui.querySelector('.toast');
@@ -321,6 +342,9 @@
     const preview = ui.querySelector('#preview');
     const previewButton = ui.querySelector('.preview-button');
     const status = ui.querySelector('.status');
+    const positionInputs = [...ui.querySelectorAll('input[name="position"]')];
+    const showPosition = () => { for (const input of positionInputs) input.checked = input.value === saved.position; };
+    showPosition();
     turnsInput.value = saved.turns;
     profileInput.checked = saved.profile;
     noteInput.checked = saved.note;
@@ -344,12 +368,39 @@
         gesture = null;
     }
 
+    // 입력창은 크랙이 다시 그릴 수 있으므로 그때마다 이 함수로 다시 넣는다.
+    function placeTrigger() {
+        const inInput = saved.position === 'input';
+        float.hidden = !room || inInput;
+        trigger.title = `맥락 복사 · 길게 눌러 설정${inInput ? '' : ' · 드래그로 이동'}`;
+        // 메시지 수정창도 같은 모양일 수 있다. 채팅 입력창은 문서에서 가장 마지막에 있다.
+        const target = !inInput ? float : room ? [...document.querySelectorAll(inputGroup)].at(-1) : null;
+        if (!target) {
+            trigger.remove();
+        } else if (trigger.parentNode !== target) {
+            endGesture();
+            // 입력창에서는 크랙 버튼과 같은 클래스를 써서 크랙의 모양을 그대로 따른다.
+            trigger.className = inInput ? target.querySelector(':scope > button.rounded-full')?.className ?? '' : 'trigger';
+            target.append(trigger);
+        }
+    }
+
+    let placeQueued = false;
+    new MutationObserver(() => {
+        if (placeQueued || saved.position !== 'input' || !room || trigger.isConnected) return;
+        placeQueued = true;
+        requestAnimationFrame(() => {
+            placeQueued = false;
+            placeTrigger();
+        });
+    }).observe(document.body, { childList: true, subtree: true });
+
     function syncRoom() {
         const nextRoom = currentRoomId();
         if (nextRoom === room) return;
         endGesture();
         room = nextRoom;
-        float.hidden = !room;
+        placeTrigger();
         if (dialog.open) dialog.close();
         showToast('');
         preview.value = '';
@@ -366,7 +417,9 @@
     function saveSettings() {
         const turns = turnsInput.valueAsNumber;
         if (!turnsInput.validity.valid || !Number.isSafeInteger(turns)) return false;
-        saved = { turns, profile: profileInput.checked, note: noteInput.checked, rpHistory: rpHistoryInput.checked };
+        saved = { turns, profile: profileInput.checked, note: noteInput.checked, rpHistory: rpHistoryInput.checked,
+            position: positionInputs.find(input => input.checked).value };
+        placeTrigger();
         try {
             localStorage.setItem(settingsKey, JSON.stringify(saved));
         } catch {
@@ -430,6 +483,10 @@
         const dy = event.clientY - gesture.y;
         if (!gesture.dragged) {
             if (Math.hypot(dx, dy) < 7) return;
+            if (saved.position === 'input') {
+                endGesture();
+                return;
+            }
             gesture.dragged = true;
             clearTimeout(holdTimer);
             trigger.classList.replace('holding', 'dragging');
@@ -467,6 +524,7 @@
     });
     ui.querySelector('.close').addEventListener('click', () => dialog.close());
     dialog.addEventListener('close', () => {
+        showPosition();
         turnsInput.value = saved.turns;
         profileInput.checked = saved.profile;
         noteInput.checked = saved.note;
