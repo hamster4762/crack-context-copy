@@ -8,8 +8,8 @@
 // @noframes
 // @grant        GM.setClipboard
 // @grant        unsafeWindow
-// @updateURL    https://github.com/hamster4762/crack-context-copy/raw/refs/heads/main/crack-context-copy.user.js
-// @downloadURL  https://github.com/hamster4762/crack-context-copy/raw/refs/heads/main/crack-context-copy.user.js
+// @updateURL    https://github.com/hamster4762/crack-extensions/raw/refs/heads/main/crack-context-copy.user.js
+// @downloadURL  https://github.com/hamster4762/crack-extensions/raw/refs/heads/main/crack-context-copy.user.js
 // ==/UserScript==
 
 // localStorage(crack-context-copy:settings)에는 최근 턴 수, 대화프로필·유저노트·RP 기록의 포함 여부, 버튼 위치(float/input)만 저장.
